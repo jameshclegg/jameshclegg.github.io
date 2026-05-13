@@ -116,6 +116,18 @@
         }
         .solve-item .delete-btn:hover { color: #ef4444; background: #1e293b; }
 
+        .solve-item .method-badge {
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.15rem 0.4rem;
+            border-radius: 0.25rem;
+            display: inline-block;
+            margin-right: 0.4rem;
+            vertical-align: middle;
+        }
+        .solve-item .method-badge.sandwich { background: rgba(245,158,11,0.2); color: #f59e0b; }
+        .solve-item .method-badge.lbl { background: rgba(59,130,246,0.2); color: #3b82f6; }
+
         /* Chart */
         .chart-container {
             margin: 1.5rem 0;
@@ -358,18 +370,21 @@
             ? formatTime(solves.reduce((a, s) => a + s.solve_time_ms, 0) / solves.length)
             : "—";
 
-        // Solve list
-        if (solves.length === 0) {
+        // Solve list — show all solves with method badge
+        if (allSolves.length === 0) {
             solveList.innerHTML = "";
             emptyState.classList.remove("hidden");
             return;
         }
         emptyState.classList.add("hidden");
 
-        solveList.innerHTML = solves.slice(0, 20).map(s => `
+        solveList.innerHTML = allSolves.slice(0, 20).map(s => `
             <li class="solve-item">
                 <div>
-                    <div class="time">${formatTime(s.solve_time_ms)}</div>
+                    <div class="time">
+                        <span class="method-badge ${s.method === 'Sandwich' ? 'sandwich' : 'lbl'}">${s.method}</span>
+                        ${formatTime(s.solve_time_ms)}
+                    </div>
                     <div class="meta">${new Date(s.solved_at).toLocaleString()}</div>
                 </div>
                 <button class="delete-btn" onclick="deleteSolve(${s.id})" title="Delete">✕</button>
