@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Cube Timer</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧊</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .container { max-width: 480px; margin: 0 auto; padding: 1rem; }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 1rem 0 0.5rem;
+        }
+        header h1 { font-size: 1.4rem; }
+        header p { color: #94a3b8; font-size: 0.85rem; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+        .tab {
+            flex: 1;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #1e293b;
+            color: #94a3b8;
+        }
+        .tab.active { background: #3b82f6; color: #fff; }
+
+        /* Stopwatch */
+        .stopwatch {
+            text-align: center;
+            padding: 2rem 0;
+        }
+        .time-display {
+            font-size: 3.5rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.02em;
+            margin-bottom: 1.5rem;
+            color: #f1f5f9;
+        }
+        .time-display.running { color: #22c55e; }
+
+        .start-btn {
+            width: 100%;
+            padding: 1.25rem;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .start-btn.ready {
+            background: #22c55e;
+            color: #052e16;
+        }
+        .start-btn.running {
+            background: #ef4444;
+            color: #fff;
+        }
+        .start-btn:active { transform: scale(0.98); }
+
+        /* Recent solves */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 1.5rem 0 0.75rem;
+        }
+        .section-header h2 { font-size: 1rem; color: #94a3b8; }
+
+        .solve-list { list-style: none; }
+        .solve-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: #1e293b;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .solve-item .time { font-weight: 600; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+        .solve-item .meta { color: #94a3b8; font-size: 0.8rem; }
+        .solve-item .delete-btn {
+            background: none;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+        }
+        .solve-item .delete-btn:hover { color: #ef4444; background: #1e293b; }
+
+        /* Chart */
+        .chart-container {
+            margin: 1.5rem 0;
+            background: #1e293b;
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+        .chart-container canvas { width: 100% !important; }
+
+        /* View toggle */
+        .view-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+        .view-tab {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            background: transparent;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-align: center;
+        }
+        .view-tab.active { border-color: #3b82f6; color: #3b82f6; }
+
+        .empty-state {
+            text-align: center;
+            color: #64748b;
+            padding: 2rem;
+            font-size: 0.9rem;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .stat-card {
+            flex: 1;
+            background: #1e293b;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            text-align: center;
+        }
+        .stat-card .label { color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; }
+        .stat-card .value { font-size: 1.3rem; font-weight: 700; margin-top: 0.25rem; font-variant-numeric: tabular-nums; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧊 Cube Timer</h1>
+            <p>Rubik's cube solve tracker</p>
+        </header>
+
+        <!-- Method selector -->
+        <div class="tabs">
+            <button class="tab active" data-method="Sandwich">🥪 Sandwich</button>
+            <button class="tab" data-method="LBL">📦 LBL</button>
+        </div>
+
+        <!-- Stopwatch -->
+        <div class="stopwatch">
+            <div class="time-display" id="timeDisplay">0.00</div>
+            <button class="start-btn ready" id="startBtn">Tap to Start</button>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-row" id="statsRow">
+            <div class="stat-card">
+                <div class="label">Today</div>
+                <div class="value" id="statToday">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Best</div>
+                <div class="value" id="statBest">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Avg</div>
+                <div class="value" id="statAvg">—</div>
+            </div>
+        </div>
+
+        <!-- View toggle -->
+        <div class="view-tabs">
+            <button class="view-tab active" data-view="history">Recent</button>
+            <button class="view-tab" data-view="chart">Chart</button>
+        </div>
+
+        <!-- Recent solves -->
+        <div id="historyView">
+            <ul class="solve-list" id="solveList"></ul>
+            <div class="empty-state hidden" id="emptyState">No solves yet — start timing!</div>
+        </div>
+
+        <!-- Chart -->
+        <div id="chartView" class="hidden">
+            <div class="chart-container">
+                <canvas id="solveChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script>
+    const API_BASE = "https://cube-timer-api.clobbermouse.workers.dev/api";
+    let allSolves = [];
+    let currentMethod = "Sandwich";
+    let currentView = "history";
+    let running = false;
+    let startTime = 0;
+    let timerInterval = null;
+
+    // --- DOM refs ---
+    const timeDisplay = document.getElementById("timeDisplay");
+    const startBtn = document.getElementById("startBtn");
+    const solveList = document.getElementById("solveList");
+    const emptyState = document.getElementById("emptyState");
+    const statToday = document.getElementById("statToday");
+    const statBest = document.getElementById("statBest");
+    const statAvg = document.getElementById("statAvg");
+
+    // --- Method tabs ---
+    document.querySelectorAll(".tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+            document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+            tab.classList.add("active");
+            currentMethod = tab.dataset.method;
+            render();
+        });
+    });
+
+    // --- View tabs ---
+    document.querySelectorAll(".view-tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+            document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
+            tab.classList.add("active");
+            currentView = tab.dataset.view;
+            document.getElementById("historyView").classList.toggle("hidden", currentView !== "history");
+            document.getElementById("chartView").classList.toggle("hidden", currentView !== "chart");
+            if (currentView === "chart") renderChart();
+        });
+    });
+
+    // --- Stopwatch ---
+    function formatTime(ms) {
+        const totalSec = ms / 1000;
+        if (totalSec < 60) return totalSec.toFixed(2);
+        const mins = Math.floor(totalSec / 60);
+        const secs = (totalSec % 60).toFixed(2).padStart(5, "0");
+        return `${mins}:${secs}`;
+    }
+
+    function updateDisplay() {
+        const elapsed = Date.now() - startTime;
+        timeDisplay.textContent = formatTime(elapsed);
+    }
+
+    startBtn.addEventListener("click", () => {
+        if (!running) {
+            running = true;
+            startTime = Date.now();
+            timerInterval = setInterval(updateDisplay, 10);
+            timeDisplay.classList.add("running");
+            startBtn.textContent = "Tap to Stop";
+            startBtn.classList.remove("ready");
+            startBtn.classList.add("running");
+        } else {
+            running = false;
+            clearInterval(timerInterval);
+            const elapsed = Date.now() - startTime;
+            timeDisplay.classList.remove("running");
+            startBtn.textContent = "Saving...";
+            saveSolve(currentMethod, elapsed);
+        }
+    });
+
+    // --- API ---
+    async function loadSolves() {
+        try {
+            const res = await fetch(`${API_BASE}/solves`);
+            allSolves = await res.json();
+            render();
+        } catch (err) {
+            console.error("Failed to load solves:", err);
+        }
+    }
+
+    async function saveSolve(method, timeMs) {
+        try {
+            const res = await fetch(`${API_BASE}/solves`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ method, solve_time_ms: timeMs }),
+            });
+            const solve = await res.json();
+            allSolves.unshift(solve);
+            render();
+        } catch (err) {
+            console.error("Failed to save solve:", err);
+        }
+        startBtn.textContent = "Tap to Start";
+        startBtn.classList.remove("running");
+        startBtn.classList.add("ready");
+    }
+
+    async function deleteSolve(id) {
+        try {
+            await fetch(`${API_BASE}/solves/${id}`, { method: "DELETE" });
+            allSolves = allSolves.filter(s => s.id !== id);
+            render();
+        } catch (err) {
+            console.error("Failed to delete solve:", err);
+        }
+    }
+
+    // --- Rendering ---
+    function methodSolves() {
+        return allSolves.filter(s => s.method === currentMethod);
+    }
+
+    function render() {
+        const solves = methodSolves();
+
+        // Stats
+        const today = new Date().toISOString().slice(0, 10);
+        const todaySolves = solves.filter(s => s.solved_at.slice(0, 10) === today);
+        statToday.textContent = todaySolves.length > 0
+            ? formatTime(todaySolves.reduce((a, s) => a + s.solve_time_ms, 0) / todaySolves.length)
+            : "—";
+        statBest.textContent = solves.length > 0
+            ? formatTime(Math.min(...solves.map(s => s.solve_time_ms)))
+            : "—";
+        statAvg.textContent = solves.length > 0
+            ? formatTime(solves.reduce((a, s) => a + s.solve_time_ms, 0) / solves.length)
+            : "—";
+
+        // Solve list
+        if (solves.length === 0) {
+            solveList.innerHTML = "";
+            emptyState.classList.remove("hidden");
+            return;
+        }
+        emptyState.classList.add("hidden");
+
+        solveList.innerHTML = solves.slice(0, 20).map(s => `
+            <li class="solve-item">
+                <div>
+                    <div class="time">${formatTime(s.solve_time_ms)}</div>
+                    <div class="meta">${new Date(s.solved_at).toLocaleString()}</div>
+                </div>
+                <button class="delete-btn" onclick="deleteSolve(${s.id})" title="Delete">✕</button>
+            </li>
+        `).join("");
+
+        if (currentView === "chart") renderChart();
+    }
+
+    // --- Chart ---
+    let chartInstance = null;
+
+    function computeDailyStats(solves) {
+        // Group by date
+        const byDate = {};
+        solves.forEach(s => {
+            const date = s.solved_at.slice(0, 10);
+            if (!byDate[date]) byDate[date] = [];
+            byDate[date].push(s.solve_time_ms / 1000);
+        });
+
+        const dates = Object.keys(byDate).sort();
+        const means = [];
+        const q1s = [];
+        const q3s = [];
+
+        dates.forEach(date => {
+            const times = byDate[date].sort((a, b) => a - b);
+            const n = times.length;
+            const mean = times.reduce((a, b) => a + b, 0) / n;
+            const q1 = times[Math.floor(n * 0.25)] || times[0];
+            const q3 = times[Math.ceil(n * 0.75) - 1] || times[n - 1];
+            means.push(mean);
+            q1s.push(q1);
+            q3s.push(q3);
+        });
+
+        return { dates, means, q1s, q3s };
+    }
+
+    function renderChart() {
+        const canvas = document.getElementById("solveChart");
+        if (chartInstance) chartInstance.destroy();
+
+        const sandwichSolves = allSolves.filter(s => s.method === "Sandwich");
+        const lblSolves = allSolves.filter(s => s.method === "LBL");
+        const sandwichStats = computeDailyStats(sandwichSolves);
+        const lblStats = computeDailyStats(lblSolves);
+
+        // Merge all dates
+        const allDates = [...new Set([...sandwichStats.dates, ...lblStats.dates])].sort();
+
+        function alignToAllDates(stats) {
+            const dateMap = {};
+            stats.dates.forEach((d, i) => {
+                dateMap[d] = { mean: stats.means[i], q1: stats.q1s[i], q3: stats.q3s[i] };
+            });
+            return {
+                means: allDates.map(d => dateMap[d]?.mean ?? null),
+                q1s: allDates.map(d => dateMap[d]?.q1 ?? null),
+                q3s: allDates.map(d => dateMap[d]?.q3 ?? null),
+            };
+        }
+
+        const sw = alignToAllDates(sandwichStats);
+        const lbl = alignToAllDates(lblStats);
+
+        chartInstance = new Chart(canvas, {
+            type: "line",
+            data: {
+                labels: allDates.map(d => {
+                    const dt = new Date(d + "T00:00:00");
+                    return dt.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+                }),
+                datasets: [
+                    {
+                        label: "Sandwich Mean",
+                        data: sw.means,
+                        borderColor: "#f59e0b",
+                        backgroundColor: "rgba(245,158,11,0.15)",
+                        fill: false,
+                        tension: 0.3,
+                        spanGaps: true,
+                    },
+                    {
+                        label: "Sandwich IQR",
+                        data: sw.q1s,
+                        borderColor: "rgba(245,158,11,0.3)",
+                        backgroundColor: "rgba(245,158,11,0.08)",
+                        fill: "+1",
+                        pointRadius: 0,
+                        borderWidth: 1,
+                        spanGaps: true,
+                    },
+                    {
+                        label: "Sandwich IQR upper",
+                        data: sw.q3s,
+                        borderColor: "rgba(245,158,11,0.3)",
+                        backgroundColor: "transparent",
+                        pointRadius: 0,
+                        borderWidth: 1,
+                        spanGaps: true,
+                    },
+                    {
+                        label: "LBL Mean",
+                        data: lbl.means,
+                        borderColor: "#3b82f6",
+                        backgroundColor: "rgba(59,130,246,0.15)",
+                        fill: false,
+                        tension: 0.3,
+                        spanGaps: true,
+                    },
+                    {
+                        label: "LBL IQR",
+                        data: lbl.q1s,
+                        borderColor: "rgba(59,130,246,0.3)",
+                        backgroundColor: "rgba(59,130,246,0.08)",
+                        fill: "+1",
+                        pointRadius: 0,
+                        borderWidth: 1,
+                        spanGaps: true,
+                    },
+                    {
+                        label: "LBL IQR upper",
+                        data: lbl.q3s,
+                        borderColor: "rgba(59,130,246,0.3)",
+                        backgroundColor: "transparent",
+                        pointRadius: 0,
+                        borderWidth: 1,
+                        spanGaps: true,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                interaction: { mode: "index", intersect: false },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: "#94a3b8",
+                            filter: item => !item.text.includes("IQR"),
+                        },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                if (ctx.dataset.label.includes("IQR")) return null;
+                                return `${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2)}s`;
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    x: { ticks: { color: "#64748b" }, grid: { color: "#1e293b" } },
+                    y: {
+                        title: { display: true, text: "Time (s)", color: "#64748b" },
+                        ticks: { color: "#64748b" },
+                        grid: { color: "#1e293b" },
+                    },
+                },
+            },
+        });
+    }
+
+    // --- Service Worker ---
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/cube-timer/sw.js");
+    }
+
+    // --- Init ---
+    loadSolves();
+    </script>
+</body>
+</html>
