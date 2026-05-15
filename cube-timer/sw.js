@@ -1,4 +1,4 @@
-const CACHE_NAME = "cube-timer-v1";
+const CACHE_NAME = "cube-timer-v2";
 const ASSETS = [
   "/cube-timer/",
   "/cube-timer/index.html",
