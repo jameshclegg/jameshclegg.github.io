@@ -408,21 +408,21 @@
 
         const dates = Object.keys(byDate).sort();
         const means = [];
-        const q1s = [];
-        const q3s = [];
+        const lows = [];
+        const highs = [];
 
         dates.forEach(date => {
-            const times = byDate[date].sort((a, b) => a - b);
+            const times = byDate[date];
             const n = times.length;
             const mean = times.reduce((a, b) => a + b, 0) / n;
-            const q1 = times[Math.floor(n * 0.25)] || times[0];
-            const q3 = times[Math.ceil(n * 0.75) - 1] || times[n - 1];
+            const variance = times.reduce((a, t) => a + (t - mean) ** 2, 0) / n;
+            const sd = Math.sqrt(variance);
             means.push(mean);
-            q1s.push(q1);
-            q3s.push(q3);
+            lows.push(mean - sd);
+            highs.push(mean + sd);
         });
 
-        return { dates, means, q1s, q3s };
+        return { dates, means, lows, highs };
     }
 
     function renderChart() {
@@ -440,12 +440,12 @@
         function alignToAllDates(stats) {
             const dateMap = {};
             stats.dates.forEach((d, i) => {
-                dateMap[d] = { mean: stats.means[i], q1: stats.q1s[i], q3: stats.q3s[i] };
+                dateMap[d] = { mean: stats.means[i], low: stats.lows[i], high: stats.highs[i] };
             });
             return {
                 means: allDates.map(d => dateMap[d]?.mean ?? null),
-                q1s: allDates.map(d => dateMap[d]?.q1 ?? null),
-                q3s: allDates.map(d => dateMap[d]?.q3 ?? null),
+                lows: allDates.map(d => dateMap[d]?.low ?? null),
+                highs: allDates.map(d => dateMap[d]?.high ?? null),
             };
         }
 
@@ -470,8 +470,8 @@
                         spanGaps: true,
                     },
                     {
-                        label: "Sandwich P25",
-                        data: sw.q1s,
+                        label: "Sandwich −1 SD",
+                        data: sw.lows,
                         borderColor: "#f59e0b",
                         backgroundColor: "rgba(245,158,11,0.08)",
                         borderDash: [5, 5],
@@ -482,8 +482,8 @@
                         borderWidth: 2,
                     },
                     {
-                        label: "Sandwich P75",
-                        data: sw.q3s,
+                        label: "Sandwich +1 SD",
+                        data: sw.highs,
                         borderColor: "#f59e0b",
                         backgroundColor: "transparent",
                         borderDash: [5, 5],
@@ -503,8 +503,8 @@
                         spanGaps: true,
                     },
                     {
-                        label: "LBL P25",
-                        data: lbl.q1s,
+                        label: "LBL −1 SD",
+                        data: lbl.lows,
                         borderColor: "#3b82f6",
                         backgroundColor: "rgba(59,130,246,0.08)",
                         borderDash: [5, 5],
@@ -515,8 +515,8 @@
                         borderWidth: 2,
                     },
                     {
-                        label: "LBL P75",
-                        data: lbl.q3s,
+                        label: "LBL +1 SD",
+                        data: lbl.highs,
                         borderColor: "#3b82f6",
                         backgroundColor: "transparent",
                         borderDash: [5, 5],
